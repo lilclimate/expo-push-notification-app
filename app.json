@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "expo-push-notification-app",
-    "slug": "expo-push-notification-app",
+    "slug": "notifycation-demo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -36,6 +36,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "5adee82b-afe1-4e91-9b92-1e3b4c1bce81"
+      }
+    },
+    "owner": "lorianzhang"
   }
 }
