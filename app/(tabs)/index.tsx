@@ -7,7 +7,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { useNotifications } from '@/hooks/useNotifications';
 
 export default function HomeScreen() {
-  const { expoPushToken, notification, schedulePushNotification } = useNotifications();
+  const { expoPushToken, notification, notificationData, schedulePushNotification, sendTypedNotification } = useNotifications();
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
@@ -55,20 +55,27 @@ export default function HomeScreen() {
 
       <ThemedView style={styles.notificationContainer}>
         <ThemedText type="subtitle">推送通知测试</ThemedText>
-        <ThemedText>点击下方按钮发送一条本地测试通知</ThemedText>
+        <ThemedText>点击按钮发送不同类型的通知，测试通知点击跳转功能</ThemedText>
         
-        <TouchableOpacity 
-          style={styles.notificationButton}
-          onPress={async () => {
-            await schedulePushNotification(
-              '测试通知', 
-              '这是一条来自您应用的本地测试通知',
-              { screen: 'home' }
-            );
-          }}
-        >
-          <ThemedText style={styles.buttonText}>发送测试通知</ThemedText>
-        </TouchableOpacity>
+        <ThemedView style={styles.buttonsRow}>
+          <TouchableOpacity 
+            style={[styles.notificationButton, styles.buttonA]}
+            onPress={async () => {
+              await sendTypedNotification('A');
+            }}
+          >
+            <ThemedText style={styles.buttonText}>发送通知A</ThemedText>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.notificationButton, styles.buttonB]}
+            onPress={async () => {
+              await sendTypedNotification('B');
+            }}
+          >
+            <ThemedText style={styles.buttonText}>发送通知B</ThemedText>
+          </TouchableOpacity>
+        </ThemedView>
 
         {expoPushToken && (
           <ThemedView style={styles.tokenContainer}>
@@ -85,6 +92,18 @@ export default function HomeScreen() {
             <ThemedText style={styles.tokenText}>数据: {JSON.stringify(notification.request.content.data)}</ThemedText>
           </ThemedView>
         )}
+        
+        {notificationData && (
+          <ThemedView style={[styles.receivedContainer, styles.dataContainer]}>
+            <ThemedText type="defaultSemiBold">通知点击数据:</ThemedText>
+            <ThemedText>类型: {notificationData.type || '未指定'}</ThemedText>
+            <ThemedText>目标页面: {notificationData.screen || '未指定'}</ThemedText>
+            {notificationData.params && (
+              <ThemedText>参数ID: {notificationData.params.id}</ThemedText>
+            )}
+            <ThemedText style={styles.tokenText}>完整数据: {JSON.stringify(notificationData)}</ThemedText>
+          </ThemedView>
+        )}
       </ThemedView>
     </ParallaxScrollView>
   );
@@ -95,6 +114,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  buttonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
   },
   stepContainer: {
     gap: 8,
@@ -116,12 +140,18 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
   },
   notificationButton: {
-    backgroundColor: '#007AFF',
+    flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
     marginVertical: 8,
+  },
+  buttonA: {
+    backgroundColor: '#007AFF',
+  },
+  buttonB: {
+    backgroundColor: '#FF9500',
   },
   buttonText: {
     color: 'white',
@@ -142,5 +172,8 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     backgroundColor: 'rgba(0, 122, 255, 0.1)',
+  },
+  dataContainer: {
+    backgroundColor: 'rgba(0, 149, 120, 0.1)',
   }
 });

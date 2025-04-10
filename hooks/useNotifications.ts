@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+import { router } from 'expo-router';
 
 /**
  * 注册推送通知token并设置通知处理程序
@@ -11,6 +12,8 @@ import { Platform } from 'react-native';
 export function useNotifications(projectId?: string) {
   const [expoPushToken, setExpoPushToken] = useState<string | undefined>();
   const [notification, setNotification] = useState<Notifications.Notification | undefined>();
+  // 用于存储通知中的数据，可以在UI中显示
+  const [notificationData, setNotificationData] = useState<any>(null);
   const notificationListener = useRef<Notifications.Subscription>();
   const responseListener = useRef<Notifications.Subscription>();
 
@@ -29,7 +32,13 @@ export function useNotifications(projectId?: string) {
     // 监听用户对通知的响应
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       console.log('收到通知响应:', response);
-      // 这里可以添加处理通知点击的逻辑
+      
+      // 获取通知中的数据
+      const data = response.notification.request.content.data;
+      setNotificationData(data);
+      
+      // 处理通知跳转逻辑
+      handleNotificationNavigation(data);
     });
 
     return () => {
@@ -55,11 +64,69 @@ export function useNotifications(projectId?: string) {
     });
   };
 
-  // 发送本地测试通知的方法
+  /**
+   * 处理通知导航逻辑
+   * @param data 通知数据对象
+   */
+  const handleNotificationNavigation = (data: any) => {
+    if (!data) return;
+    
+    try {
+      // 如果有screen参数，跳转到指定页面
+      if (data.screen) {
+        switch (data.screen) {
+          case 'home':
+            router.push('/(tabs)');
+            break;
+          case 'explore':
+            router.push('/(tabs)/explore');
+            break;
+          // 可以根据需要添加更多页面
+          default:
+            router.push('/(tabs)');
+        }
+      }
+      
+      // 如果有参数，可以通过queryParams传递
+      if (data.params && typeof data.params === 'object') {
+        // 路由带参数的逻辑可以在这里实现
+        // 例如: router.push({ pathname: '/(tabs)/explore', params: data.params });
+      }
+    } catch (err) {
+      console.error('处理通知导航时出错:', err);
+    }
+  };
+  
+  /**
+   * 发送不同类型的通知
+   * @param type 通知类型: 'A' 或 'B'
+   */
+  const sendTypedNotification = async (type: 'A' | 'B') => {
+    let title, body, data;
+    
+    if (type === 'A') {
+      title = '通知A';
+      body = '这是类型A的通知，点击进入A页面';
+      data = { screen: 'home', type: 'A', params: { id: 'a-content-id' } };
+    } else {
+      title = '通知B';
+      body = '这是类型B的通知，点击进入B页面';
+      data = { screen: 'explore', type: 'B', params: { id: 'b-content-id' } };
+    }
+    
+    await schedulePushNotification(title, body, data);
+  };
+
+  /**
+   * 发送本地测试通知的方法
+   * @param title 通知标题
+   * @param body 通知内容
+   * @param data 通知数据，可以包含跳转页面(screen)和其他参数
+   */
   const schedulePushNotification = async (
     title: string = '测试通知标题',
     body: string = '测试通知内容',
-    data: object = { data: '测试数据' }
+    data: object = { screen: 'home', data: '测试数据' }
   ) => {
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -74,7 +141,9 @@ export function useNotifications(projectId?: string) {
   return {
     expoPushToken,
     notification,
+    notificationData,
     schedulePushNotification,
+    sendTypedNotification,
   };
 }
 

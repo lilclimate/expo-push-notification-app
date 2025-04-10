@@ -1,4 +1,6 @@
 import { StyleSheet, Image, Platform } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 
 import { Collapsible } from '@/components/Collapsible';
 import { ExternalLink } from '@/components/ExternalLink';
@@ -6,8 +8,24 @@ import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useNotifications } from '@/hooks/useNotifications';
 
 export default function TabTwoScreen() {
+  const { notificationData } = useNotifications();
+  const params = useLocalSearchParams();
+  const [contentId, setContentId] = useState<string | null>(null);
+  
+  // 监听通知数据和路由参数变化
+  useEffect(() => {
+    // 优先使用通知数据
+    if (notificationData?.params?.id) {
+      setContentId(notificationData.params.id);
+    } 
+    // 其次使用路由参数
+    else if (params.id) {
+      setContentId(params.id as string);
+    }
+  }, [notificationData, params]);
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
@@ -22,6 +40,21 @@ export default function TabTwoScreen() {
       <ThemedView style={styles.titleContainer}>
         <ThemedText type="title">Explore</ThemedText>
       </ThemedView>
+      
+      {contentId && (
+        <ThemedView style={styles.notificationDataContainer}>
+          <ThemedText type="subtitle">通知数据内容</ThemedText>
+          <ThemedText>
+            这是通过通知B打开的内容，ID: <ThemedText type="defaultSemiBold">{contentId}</ThemedText>
+          </ThemedText>
+          {notificationData && notificationData.type === 'B' && (
+            <ThemedText style={styles.infoText}>
+              您点击了类型为: <ThemedText type="defaultSemiBold">{notificationData.type}</ThemedText> 的通知
+            </ThemedText>
+          )}
+        </ThemedView>
+      )}
+      
       <ThemedText>This app includes example code to help you get started.</ThemedText>
       <Collapsible title="File-based routing">
         <ThemedText>
@@ -105,5 +138,18 @@ const styles = StyleSheet.create({
   titleContainer: {
     flexDirection: 'row',
     gap: 8,
+  },
+  notificationDataContainer: {
+    marginVertical: 16,
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 149, 0, 0.15)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF9500',
+  },
+  infoText: {
+    marginTop: 8,
+    fontSize: 14,
+    opacity: 0.8,
   },
 });
