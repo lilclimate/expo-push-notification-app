@@ -3241,7 +3241,7 @@ expo-device@^7.0.3:
   dependencies:
     ua-parser-js "^0.7.33"
 
-expo-file-system@^18.0.12, expo-file-system@~18.0.12:
+expo-file-system@~18.0.12:
   version "18.0.12"
   resolved "https://registry.npmmirror.com/expo-file-system/-/expo-file-system-18.0.12.tgz#6ceeeb0725f6c5faaf58112f18c073c2acfb3027"
   integrity sha512-HAkrd/mb8r+G3lJ9MzmGeuW2B+BxQR1joKfeCyY4deLl1zoZ48FrAWjgZjHK9aHUVhJ0ehzInu/NQtikKytaeg==
@@ -3326,22 +3326,12 @@ expo-router@~4.0.20:
     semver "~7.6.3"
     server-only "^0.0.1"
 
-expo-secure-store@^14.0.1:
-  version "14.0.1"
-  resolved "https://registry.npmmirror.com/expo-secure-store/-/expo-secure-store-14.0.1.tgz#8953d5966430f5ff262f4d99e7551205870078d7"
-  integrity sha512-QUS+j4+UG4jRQalgnpmTvvrFnMVLqPiUZRzYPnG3+JrZ5kwVW2w6YS3WWerPoR7C6g3y/a2htRxRSylsDs+TaQ==
-
 expo-splash-screen@~0.29.22:
   version "0.29.22"
   resolved "https://registry.npmmirror.com/expo-splash-screen/-/expo-splash-screen-0.29.22.tgz#fd75a19cbc2989e154c0293d8e782d3de03c3296"
   integrity sha512-f+bPpF06bqiuW1Fbrd3nxeaSsmTVTBEKEYe3epYt4IE6y4Ulli3qEUamMLlRQiDGuIXPU6zQlscpy2mdBUI5cA==
   dependencies:
     "@expo/prebuild-config" "^8.0.27"
-
-expo-sqlite@^15.1.4:
-  version "15.1.4"
-  resolved "https://registry.npmmirror.com/expo-sqlite/-/expo-sqlite-15.1.4.tgz#7827db7e6d376747d9d2a3a4eea9760e5bd41c42"
-  integrity sha512-1SG5Qi6/L2SK/o5EKtvEmlMVGdra/wYYh/intI94/ovsUfZGFrDG31YGtTt4rLpE95M6FwHUVpALO8g9/G9B2Q==
 
 expo-status-bar@~2.0.1:
   version "2.0.1"
