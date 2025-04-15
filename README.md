@@ -48,3 +48,96 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+# EXPO Push Notification App - 开发进度
+
+## 项目介绍
+
+这是一个基于 Expo 框架开发的移动应用，主要功能包括用户认证、推送通知等功能。
+
+## 已完成功能
+
+### 用户认证模块 (Authentication)
+
+1. **用户界面**
+   - ✅ 创建"我的"页面，显示用户信息或登录/注册选项
+   - ✅ 实现登录表单，包含邮箱和密码字段
+   - ✅ 实现注册表单，包含用户名、邮箱和密码字段
+   - ✅ 密码输入框添加显示/隐藏密码功能
+   - ✅ 登录后显示用户详细信息（用户名、邮箱、角色等）
+   - ✅ 添加退出登录功能
+
+2. **API 集成**
+   - ✅ 实现登录 API 调用 (POST /api/auth/login)
+   - ✅ 实现注册 API 调用 (POST /api/auth/register)
+   - ✅ 实现登出 API 调用 (POST /api/auth/logout)
+
+3. **状态管理**
+   - ✅ 创建 AuthContext 用于管理用户认证状态
+   - ✅ 使用 AsyncStorage 存储和恢复用户会话信息
+   - ✅ 保存用户信息、访问令牌和刷新令牌
+
+### 导航
+
+- ✅ 实现标签导航，包含"首页"、"探索"和"我的"标签
+- ✅ 配置页面路由和导航选项
+
+## 待开发功能
+
+### 推送通知功能
+
+- ⏳ 集成 Expo 推送通知服务
+- ⏳ 实现通知管理界面
+- ⏳ 允许用户配置通知偏好
+
+### UI/UX 改进
+
+- ⏳ 主题定制和深色模式支持
+- ⏳ 添加加载动画和过渡效果
+- ⏳ 多语言支持
+
+## 技术栈
+
+- **前端框架**: React Native, Expo
+- **路由**: Expo Router
+- **状态管理**: React Context API
+- **数据存储**: AsyncStorage
+- **API 通信**: Fetch API
+- **UI 组件**: 原生组件 + 自定义主题组件
+
+## 开始使用
+
+1. 安装依赖
+
+   ```bash
+   yarn install
+   ```
+
+2. 启动应用
+
+   ```bash
+   yarn start
+   ```
+
+## API 接口
+
+### 登录
+
+- **URL**: `http://localhost:3000/api/auth/login`
+- **方法**: POST
+- **参数**: `{ email, password }`
+- **响应**: 返回用户信息、访问令牌和刷新令牌
+
+### 注册
+
+- **URL**: `http://localhost:3000/api/auth/register`
+- **方法**: POST
+- **参数**: `{ username, email, password }`
+- **响应**: 返回用户信息、访问令牌和刷新令牌
+
+### 登出
+
+- **URL**: `http://localhost:3000/api/auth/logout`
+- **方法**: POST
+- **参数**: `{ refreshToken }`
+- **响应**: 登出成功状态
