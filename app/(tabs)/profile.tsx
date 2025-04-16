@@ -83,7 +83,6 @@ export default function ProfileScreen() {
             <ThemedText style={styles.title}>我的资料</ThemedText>
             <ThemedText style={styles.userInfo}>用户名: {user.username}</ThemedText>
             <ThemedText style={styles.userInfo}>邮箱: {user.email}</ThemedText>
-            <ThemedText style={styles.userInfo}>角色: {user.role}</ThemedText>
             <TouchableOpacity 
               style={[styles.button, styles.logoutButton]} 
               onPress={handleLogout}

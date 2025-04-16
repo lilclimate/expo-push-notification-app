@@ -53,7 +53,7 @@ Join our community of developers creating universal apps.
 
 ## 项目介绍
 
-这是一个基于 Expo 框架开发的移动应用，主要功能包括用户认证、推送通知等功能。
+这是一个基于 Expo 框架开发的移动应用，主要功能包括用户认证、文章发布和浏览、推送通知等功能。
 
 ## 已完成功能
 
@@ -64,7 +64,7 @@ Join our community of developers creating universal apps.
    - ✅ 实现登录表单，包含邮箱和密码字段
    - ✅ 实现注册表单，包含用户名、邮箱和密码字段
    - ✅ 密码输入框添加显示/隐藏密码功能
-   - ✅ 登录后显示用户详细信息（用户名、邮箱、角色等）
+   - ✅ 登录后显示用户详细信息（用户名、邮箱等）
    - ✅ 添加退出登录功能
 
 2. **API 集成**
@@ -77,10 +77,29 @@ Join our community of developers creating universal apps.
    - ✅ 使用 AsyncStorage 存储和恢复用户会话信息
    - ✅ 保存用户信息、访问令牌和刷新令牌
 
+### 文章模块 (Articles)
+
+1. **文章浏览**
+   - ✅ 创建文章列表页面，支持分页加载
+   - ✅ 实现下拉刷新和上拉加载更多功能
+   - ✅ 展示文章摘要、作者和发布时间
+   - ✅ 实现文章详情页面
+
+2. **文章发布**
+   - ✅ 添加发布按钮在 Explore 标签
+   - ✅ 创建文章编辑表单，支持标题和内容输入
+   - ✅ 实现文章发布功能，需要用户登录
+
+3. **API 集成**
+   - ✅ 获取文章列表 API 调用 (GET /api/articles)
+   - ✅ 获取文章详情 API 调用 (GET /api/articles/:id)
+   - ✅ 发布文章 API 调用 (POST /api/articles)
+
 ### 导航
 
-- ✅ 实现标签导航，包含"首页"、"探索"和"我的"标签
+- ✅ 实现标签导航，包含"首页"、"发布"、"文章"和"我的"标签
 - ✅ 配置页面路由和导航选项
+- ✅ 实现模态页面（如文章发布）和详情页面路由
 
 ## 待开发功能
 
@@ -121,23 +140,48 @@ Join our community of developers creating universal apps.
 
 ## API 接口
 
-### 登录
+### 认证相关
+
+#### 登录
 
 - **URL**: `http://localhost:3000/api/auth/login`
 - **方法**: POST
 - **参数**: `{ email, password }`
 - **响应**: 返回用户信息、访问令牌和刷新令牌
 
-### 注册
+#### 注册
 
 - **URL**: `http://localhost:3000/api/auth/register`
 - **方法**: POST
 - **参数**: `{ username, email, password }`
 - **响应**: 返回用户信息、访问令牌和刷新令牌
 
-### 登出
+#### 登出
 
 - **URL**: `http://localhost:3000/api/auth/logout`
 - **方法**: POST
 - **参数**: `{ refreshToken }`
 - **响应**: 登出成功状态
+
+### 文章相关
+
+#### 获取文章列表
+
+- **URL**: `http://localhost:3000/api/articles`
+- **方法**: GET
+- **参数**: `page, limit`
+- **响应**: 返回文章列表和分页信息
+
+#### 获取文章详情
+
+- **URL**: `http://localhost:3000/api/articles/:id`
+- **方法**: GET
+- **响应**: 返回文章详细信息
+
+#### 发布文章
+
+- **URL**: `http://localhost:3000/api/articles`
+- **方法**: POST
+- **参数**: `{ title, content }`
+- **请求头**: 需要 Authorization Bearer Token
+- **响应**: 返回新创建的文章信息
