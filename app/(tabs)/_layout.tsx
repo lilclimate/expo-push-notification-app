@@ -39,17 +39,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => (
-            <TouchableOpacity onPress={handleCreateArticle}>
-              <IconSymbol size={28} name="plus.circle.fill" color={color} />
-            </TouchableOpacity>
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="articles"
         options={{
           title: 'Articles',
@@ -57,9 +46,34 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="create"
+        options={{
+          title: '',
+          tabBarIcon: ({ color }) => (
+            <TouchableOpacity onPress={handleCreateArticle}>
+              <IconSymbol size={32} name="plus.circle.fill" color={Colors[colorScheme ?? 'light'].tint} />
+            </TouchableOpacity>
+          ),
+        }}
+        listeners={{
+          tabPress: (e) => {
+            // 阻止默认的标签页导航行为
+            e.preventDefault();
+            handleCreateArticle();
+          },
+        }}
+      />
+      <Tabs.Screen
+        name="explore"
+        options={{
+          title: 'Explore',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="safari.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
-          title: '我的',
+          title: 'Me',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
         }}
       />

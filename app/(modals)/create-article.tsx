@@ -7,7 +7,8 @@ import {
   Text, 
   ScrollView, 
   Alert,
-  ActivityIndicator 
+  ActivityIndicator, 
+  DeviceEventEmitter 
 } from 'react-native';
 import { router } from 'expo-router';
 import { ThemedView } from '@/components/ThemedView';
@@ -16,6 +17,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Platform } from 'react-native';
+
+// 创建一个刷新文章列表的事件名
+export const REFRESH_ARTICLES_EVENT = 'refreshArticlesList';
 
 // 获取API基本URL
 const getApiBaseUrl = () => {
@@ -71,7 +75,15 @@ export default function CreateArticleScreen() {
 
       if (response.ok) {
         Alert.alert('成功', '文章发布成功', [
-          { text: '确定', onPress: () => router.back() }
+          { 
+            text: '确定', 
+            onPress: () => {
+              // 使用DeviceEventEmitter发送刷新事件
+              DeviceEventEmitter.emit(REFRESH_ARTICLES_EVENT);
+              // 返回文章列表页
+              router.navigate('/(tabs)/articles');
+            } 
+          }
         ]);
       } else {
         Alert.alert('错误', data.message || '发布失败，请重试');

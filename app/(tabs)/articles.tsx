@@ -6,7 +6,8 @@ import {
   TouchableOpacity, 
   View,
   RefreshControl,
-  Alert
+  Alert,
+  DeviceEventEmitter
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +17,7 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { Platform } from 'react-native';
+import { REFRESH_ARTICLES_EVENT } from '@/app/(modals)/create-article';
 
 // 获取API基本URL
 const getApiBaseUrl = () => {
@@ -116,6 +118,21 @@ export default function ArticlesScreen() {
 
   useEffect(() => {
     fetchArticles(1);
+
+    // 监听刷新事件
+    const subscription = DeviceEventEmitter.addListener(
+      REFRESH_ARTICLES_EVENT,
+      () => {
+        console.log('收到刷新文章列表事件');
+        setPage(1);
+        fetchArticles(1, true);
+      }
+    );
+
+    // 组件卸载时移除监听
+    return () => {
+      subscription.remove();
+    };
   }, [fetchArticles]);
 
   const handleRefresh = () => {
