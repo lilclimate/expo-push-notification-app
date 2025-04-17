@@ -3,7 +3,13 @@ import React from 'react';
 
 export default function ModalsLayout() {
   return (
-    <Stack screenOptions={{ presentation: 'modal', headerShown: false }}>
+    <Stack 
+      screenOptions={{ 
+        presentation: 'modal', 
+        headerShown: false,
+        headerTitle: " ",
+      }}
+    >
       <Stack.Screen 
         name="create-article" 
         options={{ 
@@ -14,6 +20,12 @@ export default function ModalsLayout() {
       />
       <Stack.Screen 
         name="settings" 
+        options={{ 
+          headerShown: false
+        }} 
+      />
+      <Stack.Screen 
+        name="login" 
         options={{ 
           headerShown: false
         }} 

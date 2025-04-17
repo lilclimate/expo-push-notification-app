@@ -162,7 +162,7 @@ export default function ProfileScreen() {
           <ThemedText style={styles.notLoggedInText}>请先登录</ThemedText>
           <TouchableOpacity 
             style={styles.loginButton} 
-            onPress={() => router.push('/(tabs)')}
+            onPress={() => router.push('/(modals)/login')}
           >
             <Text style={styles.buttonText}>去登录</Text>
           </TouchableOpacity>
