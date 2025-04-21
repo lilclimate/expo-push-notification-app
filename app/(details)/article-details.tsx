@@ -13,46 +13,13 @@ import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuth } from '@/contexts/AuthContext';
-import { Platform } from 'react-native';
-
-// 获取API基本URL
-const getApiBaseUrl = () => {
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:3000';
-  } else if (Platform.OS === 'ios') {
-    return 'http://localhost:3000';
-  }
-  return 'http://localhost:3000';
-};
-
-interface User {
-  _id: string;
-  username: string;
-  email: string;
-}
-
-interface Article {
-  _id: string;
-  title: string;
-  content: string;
-  images: string[];
-  isDeleted: boolean;
-  userId: User;
-  createdAt: string;
-  updatedAt: string;
-  __v: number;
-}
-
-interface ArticleResponse {
-  message: string;
-  data: Article;
-}
+import { articlesService, Article } from '@/app/api/articles';
 
 export default function ArticleDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [article, setArticle] = useState<Article | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { accessToken } = useAuth();
+  const { accessToken, refreshTokenIfNeeded } = useAuth();
   const colorScheme = useColorScheme() ?? 'light';
 
   useEffect(() => {
@@ -65,37 +32,23 @@ export default function ArticleDetailsScreen() {
       setIsLoading(true);
 
       try {
-        const apiUrl = `${getApiBaseUrl()}/api/articles/${id}`;
-        const headers: HeadersInit = {
-          'Content-Type': 'application/json',
-        };
-
+        // 先尝试刷新token，确保 accessToken 有效
         if (accessToken) {
-          headers['Authorization'] = `Bearer ${accessToken}`;
+          await refreshTokenIfNeeded();
         }
-
-        const response = await fetch(apiUrl, {
-          method: 'GET',
-          headers,
-        });
-
-        const data: ArticleResponse = await response.json();
-
-        if (response.ok) {
-          setArticle(data.data);
-        } else {
-          Alert.alert('错误', data.message || '获取文章详情失败');
-        }
+        
+        const articleData = await articlesService.getArticleDetails(id, accessToken || undefined);
+        setArticle(articleData.article);
       } catch (error) {
         console.error('获取文章详情错误:', error);
-        Alert.alert('错误', '网络错误，请检查网络连接');
+        Alert.alert('错误', '获取文章详情失败，请检查网络连接');
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchArticleDetails();
-  }, [id, accessToken]);
+  }, [id, accessToken, refreshTokenIfNeeded]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

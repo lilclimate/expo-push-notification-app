@@ -16,49 +16,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuth } from '@/contexts/AuthContext';
-import { Platform } from 'react-native';
 import { REFRESH_ARTICLES_EVENT } from '@/app/(modals)/create-article';
-
-// 获取API基本URL
-const getApiBaseUrl = () => {
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:3000';
-  } else if (Platform.OS === 'ios') {
-    return 'http://localhost:3000';
-  }
-  return 'http://localhost:3000';
-};
-
-interface User {
-  _id: string;
-  username: string;
-  email: string;
-}
-
-interface Article {
-  _id: string;
-  title: string;
-  content: string;
-  images: string[];
-  isDeleted: boolean;
-  userId: User;
-  createdAt: string;
-  updatedAt: string;
-  __v: number;
-}
-
-interface ArticlesResponse {
-  message: string;
-  data: {
-    articles: Article[];
-    pagination: {
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
-    };
-  };
-}
+import { articlesService, Article } from '@/app/api/articles';
 
 export default function ArticlesScreen() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -67,11 +26,11 @@ export default function ArticlesScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const { accessToken } = useAuth();
+  const { accessToken, refreshTokenIfNeeded } = useAuth();
   const colorScheme = useColorScheme() ?? 'light';
 
-  const fetchArticles = useCallback(async (currentPage: number, refresh = false) => {
-    if (refresh) {
+  const fetchArticles = useCallback(async (currentPage: number, shouldRefresh: boolean = false) => {
+    if (shouldRefresh) {
       setIsRefreshing(true);
     } else if (currentPage === 1) {
       setIsLoading(true);
@@ -80,41 +39,28 @@ export default function ArticlesScreen() {
     }
 
     try {
-      const apiUrl = `${getApiBaseUrl()}/api/articles?page=${currentPage}&limit=10`;
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-
+      // 先尝试刷新token，确保 accessToken 有效
       if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
+        await refreshTokenIfNeeded();
       }
+      
+      const data = await articlesService.getArticles(currentPage, 10, accessToken || undefined);
 
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers,
-      });
-
-      const data: ArticlesResponse = await response.json();
-
-      if (response.ok) {
-        if (refresh || currentPage === 1) {
-          setArticles(data.data.articles);
-        } else {
-          setArticles((prev) => [...prev, ...data.data.articles]);
-        }
-        setTotalPages(data.data.pagination.totalPages);
+      if (shouldRefresh || currentPage === 1) {
+        setArticles(data.articles);
       } else {
-        Alert.alert('错误', data.message || '获取文章列表失败');
+        setArticles((prev) => [...prev, ...data.articles]);
       }
+      setTotalPages(data.pagination.totalPages);
     } catch (error) {
       console.error('获取文章列表错误:', error);
-      Alert.alert('错误', '网络错误，请检查网络连接');
+      Alert.alert('错误', '获取文章列表失败，请检查网络连接');
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
       setIsRefreshing(false);
     }
-  }, [accessToken]);
+  }, [accessToken, refreshTokenIfNeeded]);
 
   useEffect(() => {
     fetchArticles(1);
@@ -249,6 +195,44 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  listContent: {
+    padding: 16,
+  },
+  articleItem: {
+    marginBottom: 16,
+  },
+  articleCard: {
+    borderRadius: 8,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  articleTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  articleContent: {
+    fontSize: 14,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  articleFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  articleAuthor: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
+  articleDate: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -269,60 +253,21 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   emptyButton: {
-    backgroundColor: '#0a7ea4',
-    padding: 12,
+    backgroundColor: Colors.light.tint,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 8,
   },
   emptyButtonText: {
-    color: 'white',
+    color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  listContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  articleItem: {
-    marginBottom: 16,
-  },
-  articleCard: {
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e1e1e1',
-  },
-  articleTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  articleContent: {
-    fontSize: 14,
-    marginBottom: 8,
-    lineHeight: 20,
-  },
-  articleFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  articleAuthor: {
-    fontSize: 12,
-    opacity: 0.7,
-  },
-  articleDate: {
-    fontSize: 12,
-    opacity: 0.7,
   },
   footerLoading: {
-    paddingVertical: 16,
-    justifyContent: 'center',
+    paddingVertical: 20,
     alignItems: 'center',
-    flexDirection: 'row',
   },
   footerText: {
-    marginLeft: 8,
     fontSize: 14,
+    marginTop: 8,
   },
 }); 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, ActivityIndicator, Alert, TouchableOpacity, FlatList, Platform, Text, RefreshControl, Image } from 'react-native';
+import { StyleSheet, View, ScrollView, ActivityIndicator, Alert, TouchableOpacity, FlatList, Text, RefreshControl, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,49 +8,22 @@ import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-
-// 获取API基本URL
-const getApiBaseUrl = () => {
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:3000';
-  } else if (Platform.OS === 'ios') {
-    return 'http://localhost:3000';
-  }
-  return 'http://localhost:3000';
-};
-
-interface Article {
-  _id: string;
-  title: string;
-  content: string;
-  images: string[];
-  isDeleted: boolean;
-  userId: {
-    _id: string;
-    username: string;
-    email: string;
-  };
-  createdAt: string;
-  updatedAt: string;
-  __v: number;
-}
-
-interface ArticlesResponse {
-  message: string;
-  data: {
-    articles: Article[];
-    total: number;
-    page: number;
-    limit: number;
-  };
-}
+import { articlesService, Article } from '@/app/api/articles';
 
 type TabType = 'posts' | 'collects' | 'likes';
 
 export default function ProfileScreen() {
-  const { user, isLoading: authLoading, accessToken } = useAuth();
+  const { user, isLoading: authLoading, accessToken, refreshTokenIfNeeded } = useAuth();
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
+  
+  // 添加 useEffect 来处理token刷新
+  useEffect(() => {
+    if (user && accessToken) {
+      // 在组件挂载时尝试检查并刷新token
+      refreshTokenIfNeeded();
+    }
+  }, [user, accessToken, refreshTokenIfNeeded]);
   
   const [activeTab, setActiveTab] = useState<TabType>('posts');
   const [articles, setArticles] = useState<Article[]>([]);
@@ -64,33 +37,18 @@ export default function ProfileScreen() {
     if (!accessToken) return;
     
     try {
-      const apiUrl = `${getApiBaseUrl()}/api/articles/my?page=${currentPage}&limit=10`;
+      const data = await articlesService.getMyArticles(currentPage, 10, accessToken);
       
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-      });
-
-      const data: ArticlesResponse = await response.json();
-
-      if (response.ok) {
-        if (shouldRefresh) {
-          setArticles(data.data.articles);
-        } else {
-          setArticles(prev => [...prev, ...data.data.articles]);
-        }
-        
-        setHasMoreData(data.data.articles.length === 10);
+      if (shouldRefresh) {
+        setArticles(data.articles);
       } else {
-        console.error('获取文章失败:', data.message);
-        Alert.alert('错误', data.message || '获取文章失败');
+        setArticles(prev => [...prev, ...data.articles]);
       }
+      
+      setHasMoreData(data.articles.length === 10);
     } catch (error) {
       console.error('获取文章错误:', error);
-      Alert.alert('错误', '网络错误，请检查网络连接');
+      Alert.alert('错误', '获取文章失败，请检查网络连接');
     }
   }, [accessToken]);
 
@@ -255,81 +213,88 @@ export default function ProfileScreen() {
             <ThemedText style={styles.statNumber}>27</ThemedText>
             <ThemedText style={styles.statLabel}>关注</ThemedText>
           </View>
-          
           <View style={styles.statItem}>
-            <ThemedText style={styles.statNumber}>3</ThemedText>
+            <ThemedText style={styles.statNumber}>142</ThemedText>
             <ThemedText style={styles.statLabel}>粉丝</ThemedText>
           </View>
-          
           <View style={styles.statItem}>
-            <ThemedText style={styles.statNumber}>0</ThemedText>
-            <ThemedText style={styles.statLabel}>点赞</ThemedText>
+            <ThemedText style={styles.statNumber}>{articles.length}</ThemedText>
+            <ThemedText style={styles.statLabel}>文章</ThemedText>
           </View>
         </View>
         
         <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.editProfileButton}>
-            <Text style={styles.editProfileButtonText}>编辑资料</Text>
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.primaryButton]}
+            onPress={() => router.push('/(modals)/create-article')}
+          >
+            <ThemedText style={styles.actionButtonText}>发布文章</ThemedText>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.settingsButton} onPress={navigateToSettings}>
-            <IconSymbol name="gear" size={20} color={Colors[colorScheme].text} />
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.secondaryButton]}
+            onPress={navigateToSettings}
+          >
+            <IconSymbol name="gearshape" size={18} color={Colors[colorScheme].text} />
           </TouchableOpacity>
         </View>
       </ThemedView>
       
-      {/* 快捷功能区域 */}
-      <ThemedView style={styles.quickActions}>
-        <TouchableOpacity style={styles.quickActionItem}>
-          <IconSymbol name="bag" size={24} color={Colors[colorScheme].text} />
-          <ThemedText style={styles.quickActionText}>商店</ThemedText>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.quickActionItem}>
-          <IconSymbol name="cart" size={24} color={Colors[colorScheme].text} />
-          <ThemedText style={styles.quickActionText}>订单</ThemedText>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.quickActionItem}>
-          <IconSymbol name="cart.badge.plus" size={24} color={Colors[colorScheme].text} />
-          <ThemedText style={styles.quickActionText}>购物车</ThemedText>
-        </TouchableOpacity>
-      </ThemedView>
-      
-      {/* 标签页导航 */}
+      {/* 标签页 */}
       <ThemedView style={styles.tabContainer}>
         <TouchableOpacity 
-          style={[styles.tab, activeTab === 'posts' && styles.activeTab]} 
+          style={[
+            styles.tab, 
+            activeTab === 'posts' && styles.activeTab
+          ]}
           onPress={() => handleTabPress('posts')}
         >
-          <ThemedText style={[styles.tabText, activeTab === 'posts' && styles.activeTabText]}>
+          <ThemedText 
+            style={[
+              styles.tabText, 
+              activeTab === 'posts' && styles.activeTabText
+            ]}
+          >
             文章
           </ThemedText>
-          {activeTab === 'posts' && <View style={styles.activeTabIndicator} />}
         </TouchableOpacity>
         
         <TouchableOpacity 
-          style={[styles.tab, activeTab === 'collects' && styles.activeTab]} 
+          style={[
+            styles.tab, 
+            activeTab === 'collects' && styles.activeTab
+          ]}
           onPress={() => handleTabPress('collects')}
         >
-          <ThemedText style={[styles.tabText, activeTab === 'collects' && styles.activeTabText]}>
+          <ThemedText 
+            style={[
+              styles.tabText, 
+              activeTab === 'collects' && styles.activeTabText
+            ]}
+          >
             收藏
           </ThemedText>
-          {activeTab === 'collects' && <View style={styles.activeTabIndicator} />}
         </TouchableOpacity>
         
         <TouchableOpacity 
-          style={[styles.tab, activeTab === 'likes' && styles.activeTab]} 
+          style={[
+            styles.tab, 
+            activeTab === 'likes' && styles.activeTab
+          ]}
           onPress={() => handleTabPress('likes')}
         >
-          <ThemedText style={[styles.tabText, activeTab === 'likes' && styles.activeTabText]}>
+          <ThemedText 
+            style={[
+              styles.tabText, 
+              activeTab === 'likes' && styles.activeTabText
+            ]}
+          >
             点赞
           </ThemedText>
-          {activeTab === 'likes' && <View style={styles.activeTabIndicator} />}
         </TouchableOpacity>
       </ThemedView>
       
-      {/* 内容区域 */}
+      {/* 标签页内容 */}
       <FlatList
         data={activeTab === 'posts' ? articles : []}
         renderItem={renderArticleItem}
@@ -458,53 +423,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  editProfileButton: {
-    flex: 1,
-    backgroundColor: Colors.light.tint,
-    borderRadius: 20,
+  actionButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-    marginRight: 12,
-    alignItems: 'center',
+    borderRadius: 8,
+    marginRight: 10,
   },
-  editProfileButtonText: {
+  primaryButton: {
+    backgroundColor: Colors.light.tint,
+  },
+  secondaryButton: {
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  actionButtonText: {
     color: '#fff',
-    fontWeight: 'bold',
-  },
-  settingsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  quickActions: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  quickActionItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  quickActionText: {
     fontSize: 14,
-    marginTop: 4,
+    fontWeight: 'bold',
   },
   tabContainer: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderColor: '#e0e0e0',
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   tab: {
     flex: 1,
-    alignItems: 'center',
     paddingVertical: 12,
-    position: 'relative',
+    alignItems: 'center',
   },
   activeTab: {
     borderBottomWidth: 2,
@@ -517,29 +463,26 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.light.tint,
   },
-  activeTabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    height: 2,
-    width: '30%',
-    backgroundColor: Colors.light.tint,
-  },
   listContent: {
-    flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 20,
+    padding: 16,
+    paddingBottom: 32,
   },
   articleItem: {
-    flexDirection: 'row',
     marginBottom: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderRadius: 8,
+    backgroundColor: '#fff', // 使用固定颜色以确保黑暗模式下也能看清
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    flexDirection: 'row',
+    overflow: 'hidden',
   },
   articleContent: {
     flex: 1,
-    marginRight: 12,
+    padding:
+    16,
   },
   articleTitle: {
     fontSize: 16,
@@ -549,12 +492,12 @@ const styles = StyleSheet.create({
   articleExcerpt: {
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 8,
     opacity: 0.7,
+    marginBottom: 12,
   },
   articleMeta: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'flex-start',
   },
   articleDate: {
     fontSize: 12,
@@ -562,27 +505,14 @@ const styles = StyleSheet.create({
   },
   articleImageContainer: {
     width: 80,
-    height: 80,
+    backgroundColor: '#f0f0f0',
   },
   articleImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 8,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    opacity: 0.7,
-    textAlign: 'center',
   },
   footer: {
-    paddingVertical: 20,
+    padding: 16,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
@@ -590,6 +520,17 @@ const styles = StyleSheet.create({
   footerText: {
     marginLeft: 8,
     fontSize: 14,
+    opacity: 0.7,
+  },
+  emptyContainer: {
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    textAlign: 'center',
     opacity: 0.7,
   },
 }); 
