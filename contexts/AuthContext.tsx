@@ -15,6 +15,7 @@ interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   accessTokenExpiresAt: number | null;
+  refreshTokenExpiresAt: number | null;
   isLoading: boolean;
 }
 
@@ -33,6 +34,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     accessToken: null,
     refreshToken: null,
     accessTokenExpiresAt: null,
+    refreshTokenExpiresAt: null,
     isLoading: true,
   });
   
@@ -47,29 +49,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // 设置自动刷新token的定时器
-  const setupRefreshTimer = (expiresAt: number) => {
+  // 设置自动检查token的定时器 (每小时检查一次)
+  const setupRefreshTimer = () => {
     clearRefreshTimer();
     
-    // 获取当前时间戳（毫秒）
-    const now = Date.now();
+    // 设置1小时的定时器 (3600000毫秒)
+    const ONE_HOUR = 3600000;
+    console.log(`定时器将在1小时后检查token状态: ${new Date(Date.now() + ONE_HOUR).toLocaleString()}`);
     
-    // 计算过期前一小时的时间点（毫秒）
-    const refreshTime = expiresAt - (60 * 60 * 1000);
-    
-    // 如果已经过了刷新时间，立即刷新
-    if (now >= refreshTime) {
-      refreshTokenIfNeeded();
+    refreshTimerRef.current = setTimeout(() => {
+      checkAndRefreshTokenIfNeeded();
+    }, ONE_HOUR);
+  };
+  
+  // 检查并刷新token (如果需要)
+  const checkAndRefreshTokenIfNeeded = async () => {
+    // 检查用户是否存在
+    if (!state.user || !state.refreshToken || !state.refreshTokenExpiresAt) {
+      // 重新设置定时器继续检查
+      setupRefreshTimer();
       return;
     }
     
-    // 否则，设置定时器在过期前一小时刷新
-    const timeoutDuration = refreshTime - now;
-    console.log(`Token将在 ${new Date(refreshTime).toLocaleString()} 刷新`);
+    const now = Date.now();
+    const refreshTokenExpiresIn = state.refreshTokenExpiresAt - now;
     
-    refreshTimerRef.current = setTimeout(() => {
-      refreshTokenIfNeeded();
-    }, timeoutDuration);
+    // 如果refreshToken还有不到1小时过期
+    if (refreshTokenExpiresIn < 3600000) {
+      console.log('refreshToken即将过期，尝试刷新');
+      await refreshTokenIfNeeded();
+    } else {
+      // 重新设置定时器继续检查
+      setupRefreshTimer();
+    }
   };
 
   useEffect(() => {
@@ -79,20 +91,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const userString = await AsyncStorage.getItem('user');
         const accessToken = await AsyncStorage.getItem('accessToken');
         const refreshToken = await AsyncStorage.getItem('refreshToken');
-        const expiresAtString = await AsyncStorage.getItem('accessTokenExpiresAt');
-        const accessTokenExpiresAt = expiresAtString ? parseInt(expiresAtString) : null;
+        const accessTokenExpiresAtString = await AsyncStorage.getItem('accessTokenExpiresAt');
+        const refreshTokenExpiresAtString = await AsyncStorage.getItem('refreshTokenExpiresAt');
+        
+        const accessTokenExpiresAt = accessTokenExpiresAtString ? parseInt(accessTokenExpiresAtString) : null;
+        const refreshTokenExpiresAt = refreshTokenExpiresAtString ? parseInt(refreshTokenExpiresAtString) : null;
 
-        if (userString && accessToken && refreshToken && accessTokenExpiresAt) {
+        if (userString && accessToken && refreshToken && accessTokenExpiresAt && refreshTokenExpiresAt) {
           setState({
             user: JSON.parse(userString),
             accessToken,
             refreshToken,
             accessTokenExpiresAt,
+            refreshTokenExpiresAt,
             isLoading: false,
           });
           
-          // 设置刷新token的定时器
-          setupRefreshTimer(accessTokenExpiresAt);
+          // 设置定时检查token的定时器
+          setupRefreshTimer();
         } else {
           setState(prev => ({ ...prev, isLoading: false }));
         }
@@ -114,7 +130,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     user: User | null, 
     accessToken: string | null, 
     refreshToken: string | null, 
-    accessTokenExpiresAt: number | null
+    accessTokenExpiresAt: number | null,
+    refreshTokenExpiresAt: number | null
   ) => {
     try {
       if (user) {
@@ -140,6 +157,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } else {
         await AsyncStorage.removeItem('accessTokenExpiresAt');
       }
+      
+      if (refreshTokenExpiresAt) {
+        await AsyncStorage.setItem('refreshTokenExpiresAt', refreshTokenExpiresAt.toString());
+      } else {
+        await AsyncStorage.removeItem('refreshTokenExpiresAt');
+      }
     } catch (error) {
       console.error('Failed to save auth state to storage', error);
     }
@@ -155,18 +178,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const data = await authService.refreshToken(state.refreshToken);
       
       const { accessToken, refreshToken, accessTokenExpiresAt } = data;
+      // 假设refreshToken的有效期是30天，这里需要根据实际后端设置调整
+      const refreshTokenExpiresAt = Date.now() + (30 * 24 * 60 * 60 * 1000);
       
       setState(prev => ({
         ...prev,
         accessToken,
         refreshToken,
         accessTokenExpiresAt,
+        refreshTokenExpiresAt,
       }));
       
-      await saveAuthState(state.user, accessToken, refreshToken, accessTokenExpiresAt);
+      await saveAuthState(
+        state.user, 
+        accessToken, 
+        refreshToken, 
+        accessTokenExpiresAt,
+        refreshTokenExpiresAt
+      );
       
-      // 设置下一次刷新的定时器
-      setupRefreshTimer(accessTokenExpiresAt);
+      // 设置下一次检查的定时器
+      setupRefreshTimer();
       
       console.log('Token已成功刷新');
       return true;
@@ -188,8 +220,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.log('调用登录API');
       
       const data = await authService.login(email, password);
+      console.log(data, 'loginData------------')
       
-      const { user, accessToken, refreshToken, accessTokenExpiresAt } = data;
+      const { user, accessToken, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt } = data;
+      
+      // 如果后端没有返回refreshTokenExpiresAt，则自行设置为30天
+      const calculatedRefreshTokenExpiresAt = refreshTokenExpiresAt || Date.now() + (30 * 24 * 60 * 60 * 1000);
       
       setState(prev => ({
         ...prev,
@@ -197,12 +233,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         accessToken,
         refreshToken,
         accessTokenExpiresAt,
+        refreshTokenExpiresAt: calculatedRefreshTokenExpiresAt,
       }));
       
-      await saveAuthState(user, accessToken, refreshToken, accessTokenExpiresAt);
+      await saveAuthState(
+        user, 
+        accessToken, 
+        refreshToken, 
+        accessTokenExpiresAt,
+        calculatedRefreshTokenExpiresAt
+      );
       
-      // 设置刷新token的定时器
-      setupRefreshTimer(accessTokenExpiresAt);
+      // 设置定时检查token的定时器
+      setupRefreshTimer();
       
       return true;
     } catch (error) {
@@ -218,23 +261,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const data = await authService.register(username, email, password);
 
       if (data.user && data.accessToken && data.refreshToken && data.accessTokenExpiresAt) {
+        // 如果后端没有返回refreshTokenExpiresAt，则自行设置为30天
+        const refreshTokenExpiresAt = data.refreshTokenExpiresAt || Date.now() + (30 * 24 * 60 * 60 * 1000);
+        
         setState(prev => ({
           ...prev,
           user: data.user,
           accessToken: data.accessToken,
           refreshToken: data.refreshToken,
           accessTokenExpiresAt: data.accessTokenExpiresAt,
+          refreshTokenExpiresAt,
         }));
         
         await saveAuthState(
           data.user, 
           data.accessToken, 
           data.refreshToken, 
-          data.accessTokenExpiresAt
+          data.accessTokenExpiresAt,
+          refreshTokenExpiresAt
         );
         
-        // 设置刷新token的定时器
-        setupRefreshTimer(data.accessTokenExpiresAt);
+        // 设置定时检查token的定时器
+        setupRefreshTimer();
         
         return true;
       }
@@ -249,7 +297,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     try {
-      // 清除刷新token的定时器
+      // 清除定时器
       clearRefreshTimer();
       
       // 如果有refreshToken，调用退出登录API
@@ -270,8 +318,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         accessToken: null,
         refreshToken: null,
         accessTokenExpiresAt: null,
+        refreshTokenExpiresAt: null,
       }));
-      await saveAuthState(null, null, null, null);
+      await saveAuthState(null, null, null, null, null);
     }
   };
 

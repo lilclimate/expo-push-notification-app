@@ -11,6 +11,31 @@ interface ApiResponse<T = any> {
   [key: string]: any;
 }
 
+// 导入必要的依赖
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
+
+/**
+ * 清除用户认证状态并跳转到个人页面
+ */
+async function clearAuthAndRedirect() {
+  try {
+    // 清除存储中的所有认证信息
+    await AsyncStorage.removeItem('user');
+    await AsyncStorage.removeItem('accessToken');
+    await AsyncStorage.removeItem('refreshToken');
+    await AsyncStorage.removeItem('accessTokenExpiresAt');
+    await AsyncStorage.removeItem('refreshTokenExpiresAt');
+    
+    console.log('用户认证状态已清除');
+    
+    // 重定向到个人页面
+    router.replace('/(tabs)/profile');
+  } catch (error) {
+    console.error('清除认证状态失败', error);
+  }
+}
+
 /**
  * 通用的API请求方法
  * @param url API地址
@@ -49,6 +74,17 @@ async function apiRequest<T = any>(
     const responseData = await response.json();
 
     if (!response.ok) {
+      // 检查是否是令牌无效或过期的错误
+      if (
+        responseData.message?.includes('无效或过期的令牌') || 
+        responseData.message?.includes('invalid token') || 
+        responseData.message?.includes('expired token') ||
+        response.status === 401
+      ) {
+        console.error('令牌无效或已过期');
+        // 清除用户认证状态并重定向
+        await clearAuthAndRedirect();
+      }
       throw new Error(responseData.message || '请求失败');
     }
 

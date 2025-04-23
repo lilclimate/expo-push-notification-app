@@ -26,7 +26,7 @@ export default function ArticlesScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const { accessToken, refreshTokenIfNeeded } = useAuth();
+  const { accessToken } = useAuth();
   const colorScheme = useColorScheme() ?? 'light';
 
   const fetchArticles = useCallback(async (currentPage: number, shouldRefresh: boolean = false) => {
@@ -39,11 +39,6 @@ export default function ArticlesScreen() {
     }
 
     try {
-      // 先尝试刷新token，确保 accessToken 有效
-      if (accessToken) {
-        await refreshTokenIfNeeded();
-      }
-      
       const data = await articlesService.getArticles(currentPage, 10, accessToken || undefined);
 
       if (shouldRefresh || currentPage === 1) {
@@ -60,7 +55,7 @@ export default function ArticlesScreen() {
       setIsLoadingMore(false);
       setIsRefreshing(false);
     }
-  }, [accessToken, refreshTokenIfNeeded]);
+  }, [accessToken]);
 
   useEffect(() => {
     fetchArticles(1);

@@ -13,17 +13,9 @@ import { articlesService, Article } from '@/app/api/articles';
 type TabType = 'posts' | 'collects' | 'likes';
 
 export default function ProfileScreen() {
-  const { user, isLoading: authLoading, accessToken, refreshTokenIfNeeded } = useAuth();
+  const { user, isLoading: authLoading, accessToken } = useAuth();
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
-  
-  // 添加 useEffect 来处理token刷新
-  useEffect(() => {
-    if (user && accessToken) {
-      // 在组件挂载时尝试检查并刷新token
-      refreshTokenIfNeeded();
-    }
-  }, [user, accessToken, refreshTokenIfNeeded]);
   
   const [activeTab, setActiveTab] = useState<TabType>('posts');
   const [articles, setArticles] = useState<Article[]>([]);

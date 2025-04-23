@@ -72,6 +72,7 @@ const articlesService = {
   getMyArticles: async (page: number = 1, limit: number = 10, token: string): Promise<ArticlesListResponse> => {
     const url = `${API_ENDPOINTS.ARTICLES.MY_ARTICLES}?page=${page}&limit=${limit}`;
     const response = await apiService.get<ArticlesListResponse>(url, { token });
+    console.log(response, '------response');
     return response.data;
   },
 

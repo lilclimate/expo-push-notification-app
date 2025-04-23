@@ -19,7 +19,7 @@ export default function ArticleDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [article, setArticle] = useState<Article | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { accessToken, refreshTokenIfNeeded } = useAuth();
+  const { accessToken } = useAuth();
   const colorScheme = useColorScheme() ?? 'light';
 
   useEffect(() => {
@@ -32,11 +32,6 @@ export default function ArticleDetailsScreen() {
       setIsLoading(true);
 
       try {
-        // 先尝试刷新token，确保 accessToken 有效
-        if (accessToken) {
-          await refreshTokenIfNeeded();
-        }
-        
         const articleData = await articlesService.getArticleDetails(id, accessToken || undefined);
         setArticle(articleData.article);
       } catch (error) {
@@ -48,7 +43,7 @@ export default function ArticleDetailsScreen() {
     };
 
     fetchArticleDetails();
-  }, [id, accessToken, refreshTokenIfNeeded]);
+  }, [id, accessToken]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
