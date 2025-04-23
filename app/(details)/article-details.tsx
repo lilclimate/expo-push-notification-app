@@ -33,7 +33,7 @@ export default function ArticleDetailsScreen() {
 
       try {
         const articleData = await articlesService.getArticleDetails(id, accessToken || undefined);
-        setArticle(articleData.article);
+        setArticle(articleData);
       } catch (error) {
         console.error('获取文章详情错误:', error);
         Alert.alert('错误', '获取文章详情失败，请检查网络连接');

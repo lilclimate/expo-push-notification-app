@@ -29,9 +29,7 @@ export interface ArticlesListResponse {
 }
 
 // 单个文章响应类型
-export interface ArticleResponse {
-  article: Article;
-}
+export interface ArticleResponse  extends Article {}
 
 /**
  * 文章服务
@@ -72,7 +70,6 @@ const articlesService = {
   getMyArticles: async (page: number = 1, limit: number = 10, token: string): Promise<ArticlesListResponse> => {
     const url = `${API_ENDPOINTS.ARTICLES.MY_ARTICLES}?page=${page}&limit=${limit}`;
     const response = await apiService.get<ArticlesListResponse>(url, { token });
-    console.log(response, '------response');
     return response.data;
   },
 
