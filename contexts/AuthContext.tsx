@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect, ReactNode, useRe
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '@/app/api';
 import { API_ENDPOINTS } from '@/app/api';
+import googleAuthService from '@/app/api/auth/google';
 
 interface User {
   id: string;
@@ -24,6 +25,8 @@ interface AuthContextType extends AuthState {
   register: (username: string, email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshTokenIfNeeded: () => Promise<boolean>;
+  getGoogleAuthUrl: () => Promise<string>;
+  handleGoogleCallback: (code: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -323,6 +326,59 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // 获取Google登录URL
+  const getGoogleAuthUrl = async (): Promise<string> => {
+    try {
+      const data = await googleAuthService.getGoogleAuthUrl();
+      return data.url;
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error('获取Google登录URL错误:', error.message);
+      } else {
+        console.error('获取Google登录URL错误:', error);
+      }
+      return '';
+    }
+  };
+
+  // 处理Google登录回调
+  const handleGoogleCallback = async (code: string): Promise<boolean> => {
+    try {
+      console.log('处理Google登录回调');
+      const data = await googleAuthService.googleAuthCallback(code);
+      
+      const { user, accessToken, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt } = data;
+      
+      // 如果后端没有返回refreshTokenExpiresAt，则自行设置为30天
+      const calculatedRefreshTokenExpiresAt = refreshTokenExpiresAt || Date.now() + (30 * 24 * 60 * 60 * 1000);
+      
+      setState(prev => ({
+        ...prev,
+        user,
+        accessToken,
+        refreshToken,
+        accessTokenExpiresAt,
+        refreshTokenExpiresAt: calculatedRefreshTokenExpiresAt,
+      }));
+      
+      await saveAuthState(
+        user, 
+        accessToken, 
+        refreshToken, 
+        accessTokenExpiresAt,
+        calculatedRefreshTokenExpiresAt
+      );
+      
+      // 设置定时检查token的定时器
+      setupRefreshTimer();
+      
+      return true;
+    } catch (error) {
+      console.error('Google登录错误:', error);
+      return false;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -331,6 +387,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         register,
         logout,
         refreshTokenIfNeeded,
+        getGoogleAuthUrl,
+        handleGoogleCallback,
       }}
     >
       {children}

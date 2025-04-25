@@ -18,7 +18,9 @@ const API_ENDPOINTS = {
     LOGIN: `${getApiBaseUrl()}/api/auth/login`,
     REGISTER: `${getApiBaseUrl()}/api/auth/register`,
     LOGOUT: `${getApiBaseUrl()}/api/auth/logout`,
-    REFRESH_TOKEN: `${getApiBaseUrl()}/api/auth/refresh-token`
+    REFRESH_TOKEN: `${getApiBaseUrl()}/api/auth/refresh-token`,
+    GOOGLE: `${getApiBaseUrl()}/api/auth/google`,
+    GOOGLE_CALLBACK: `${getApiBaseUrl()}/api/auth/google/callback`
   },
   // 文章相关
   ARTICLES: {

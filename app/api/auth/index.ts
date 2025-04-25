@@ -1,3 +1,4 @@
 import authService from './authService';
+import googleAuthService from './google';
 
-export { authService }; 
+export { authService, googleAuthService }; 

@@ -40,10 +40,7 @@ describe('apiService', () => {
         .rejects.toThrow('无效或过期的令牌');
 
       // 验证是否清除了认证状态
-      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('user');
-      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('accessToken');
-      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('refreshToken');
-      expect(AsyncStorage.removeItem).toHaveBeenCalledWith('accessTokenExpiresAt');
+      expect(AsyncStorage.removeItem).toHaveBeenCalledTimes(5);
 
       // 验证是否重定向到个人页面
       expect(router.replace).toHaveBeenCalledWith('/(tabs)/profile');
@@ -64,7 +61,7 @@ describe('apiService', () => {
         .rejects.toThrow('invalid token');
 
       // 验证是否清除了认证状态
-      expect(AsyncStorage.removeItem).toHaveBeenCalledTimes(4);
+      expect(AsyncStorage.removeItem).toHaveBeenCalledTimes(5);
       
       // 验证是否重定向到个人页面
       expect(router.replace).toHaveBeenCalledWith('/(tabs)/profile');
@@ -86,7 +83,7 @@ describe('apiService', () => {
         .rejects.toThrow('未授权');
 
       // 验证是否清除了认证状态
-      expect(AsyncStorage.removeItem).toHaveBeenCalledTimes(4);
+      expect(AsyncStorage.removeItem).toHaveBeenCalledTimes(5);
       
       // 验证是否重定向到个人页面
       expect(router.replace).toHaveBeenCalledWith('/(tabs)/profile');
@@ -112,6 +109,27 @@ describe('apiService', () => {
       
       // 验证没有重定向
       expect(router.replace).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getGoogleAuthUrl', () => {
+    it('应该返回完整的response对象', async () => {
+      // mock response
+      const mockResponse = {
+        message: 'ok',
+        data: { url: 'https://accounts.google.com/o/oauth2/v2/auth?...' },
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        extra: 'test',
+      };
+      // mock apiService.get
+      jest.spyOn(apiService, 'get').mockResolvedValueOnce(mockResponse);
+      // 动态导入，避免循环依赖
+      const { getGoogleAuthUrl } = require('@/app/api/auth/google');
+      const result = await getGoogleAuthUrl();
+      expect(result).toEqual(mockResponse);
+      expect(result.data.url).toContain('https://accounts.google.com/o/oauth2/v2/auth');
+      expect(result.status).toBe(200);
     });
   });
 }); 

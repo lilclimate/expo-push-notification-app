@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,9 +8,10 @@ import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import GoogleIcon from '@/components/ui/GoogleIcon';
 
 export default function LoginScreen() {
-  const { login, register } = useAuth();
+  const { login, register, getGoogleAuthUrl, handleGoogleCallback } = useAuth();
   const router = useRouter();
   const [isRegistering, setIsRegistering] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -63,6 +64,59 @@ export default function LoginScreen() {
   
   const handleBack = () => {
     router.back();
+  };
+
+  // 处理Google登录
+  const handleGoogleLogin = async () => {
+    try {
+      setSubmitting(true);
+      const googleAuthUrl = await getGoogleAuthUrl();
+      
+      if (!googleAuthUrl) {
+        Alert.alert('错误', '获取Google登录链接失败');
+        setSubmitting(false);
+        return;
+      }
+      
+      // 添加URL回调监听
+      const handleUrl = async (event: { url: string }) => {
+        const { url } = event;
+        
+        // 检查URL是否包含我们应用的回调URL和授权码
+        if (url.includes('auth/google/callback')) {
+          // 从URL中提取授权码
+          const code = url.split('code=')[1]?.split('&')[0];
+          
+          if (code) {
+            // 处理Google登录回调
+            const success = await handleGoogleCallback(code);
+            
+            if (success) {
+              router.back();
+            } else {
+              Alert.alert('登录失败', 'Google登录认证失败');
+            }
+          }
+        }
+      };
+      
+      // 添加URL事件监听器
+      const subscription = Linking.addEventListener('url', handleUrl);
+      
+      // 打开Google登录页面
+      await Linking.openURL(googleAuthUrl);
+      
+      setSubmitting(false);
+      
+      // 注册完成后记得移除监听器
+      return () => {
+        subscription.remove();
+      };
+    } catch (error) {
+      console.error('Google登录错误:', error);
+      setSubmitting(false);
+      Alert.alert('错误', '启动Google登录失败');
+    }
   };
 
   return (
@@ -135,6 +189,13 @@ export default function LoginScreen() {
                 <TouchableOpacity onPress={() => setIsRegistering(false)}>
                   <ThemedText style={styles.switchButton}>去登录</ThemedText>
                 </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.googleButton}
+                  onPress={handleGoogleLogin}
+                  disabled={submitting}
+                >
+                  <GoogleIcon size={20} />
+                </TouchableOpacity>
               </View>
             </View>
           ) : (
@@ -179,6 +240,17 @@ export default function LoginScreen() {
                 ) : (
                   <Text style={styles.buttonText}>登录</Text>
                 )}
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.button, styles.googleLoginButton, submitting && styles.disabledButton]} 
+                onPress={handleGoogleLogin}
+                disabled={submitting}
+              >
+                <View style={styles.googleButtonContent}>
+                  <GoogleIcon size={20} />
+                  <Text style={styles.googleButtonText}>使用Google账号登录</Text>
+                </View>
               </TouchableOpacity>
               
               <View style={styles.switchContainer}>
@@ -287,5 +359,34 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.light.tint,
     marginLeft: 5,
+  },
+  googleLoginButton: {
+    backgroundColor: 'white',
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  googleButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleButtonText: {
+    color: '#444',
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: 10,
+  },
+  googleButton: {
+    marginLeft: 10,
+    padding: 5,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: 30, 
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
   }
 }); 
