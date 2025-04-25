@@ -1,38 +1,89 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, View, ScrollView, ActivityIndicator, Alert, TouchableOpacity, FlatList, Text, RefreshControl, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, View, ActivityIndicator, Alert, TouchableOpacity, FlatList, Text, RefreshControl, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import { Link, router } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { Colors } from '@/constants/Colors';
-import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { articlesService, userService } from '@/app/api';
 import { Article } from '@/app/api/articles';
+import { useAuth } from '@/contexts/AuthContext';
 
 type TabType = 'posts' | 'collects' | 'likes';
 
-export default function ProfileScreen() {
-  const { user, isLoading: authLoading, accessToken } = useAuth();
+// 简化的用户信息类型
+interface UserInfo {
+  id: string;
+  username: string;
+}
+
+export default function UserProfileScreen() {
+  const { userId } = useLocalSearchParams<{ userId: string }>();
+  const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
+  const { user: currentUser, accessToken } = useAuth();
   
+  const [user, setUser] = useState<UserInfo | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('posts');
   const [articles, setArticles] = useState<Article[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMoreData, setHasMoreData] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  // 添加关注相关状态
   const [followStats, setFollowStats] = useState({ following: 0, followers: 0 });
-  const [isLoadingFollowStats, setIsLoadingFollowStats] = useState(false);
+  const [followStatus, setFollowStatus] = useState<number>(0);
+  const [isLoadingFollow, setIsLoadingFollow] = useState(false);
+  const [isProcessingFollow, setIsProcessingFollow] = useState(false);
 
-  const fetchMyArticles = useCallback(async (currentPage: number, shouldRefresh: boolean = false) => {
-    if (!accessToken) return;
+  // 获取用户信息
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      if (!userId) {
+        Alert.alert('错误', '用户ID不存在');
+        router.back();
+        return;
+      }
+
+      setIsLoading(true);
+
+      try {
+        // 这里应该调用获取用户信息的API
+        // 当前仅使用文章中的userId信息作为演示
+        const articlesData = await articlesService.getUserArticles(userId, 1, 1, accessToken || undefined);
+        if (articlesData.articles.length > 0) {
+          const userData = articlesData.articles[0].userId;
+          setUser({
+            id: userData._id,
+            username: userData.username
+          });
+        } else {
+          // 如果没有文章，可能需要另一个API来获取用户信息
+          Alert.alert('提示', '无法获取用户信息');
+          router.back();
+        }
+      } catch (error) {
+        console.error('获取用户信息错误:', error);
+        Alert.alert('错误', '获取用户信息失败，请检查网络连接');
+        router.back();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserInfo();
+  }, [userId, router, accessToken]);
+
+  // 获取用户文章
+  const fetchUserArticles = useCallback(async (currentPage: number, shouldRefresh: boolean = false) => {
+    if (!userId) return;
     
     try {
-      const data = await articlesService.getMyArticles(currentPage, 10, accessToken);
+      const data = await articlesService.getUserArticles(userId, currentPage, 10, accessToken || undefined);
       
       if (shouldRefresh) {
         setArticles(data.articles);
@@ -45,24 +96,106 @@ export default function ProfileScreen() {
       console.error('获取文章错误:', error);
       Alert.alert('错误', '获取文章失败，请检查网络连接');
     }
-  }, [accessToken]);
+  }, [userId, accessToken]);
+
+  // 获取关注和粉丝数据
+  useEffect(() => {
+    const fetchFollowStats = async () => {
+      if (!userId) return;
+      
+      try {
+        const data = await userService.getFollowCount(userId, accessToken || undefined);
+        setFollowStats({
+          following: data.following,
+          followers: data.followers
+        });
+      } catch (error) {
+        console.error('获取关注数据错误:', error);
+      }
+    };
+
+    fetchFollowStats();
+  }, [userId, accessToken]);
+
+  // 获取关注状态
+  useEffect(() => {
+    const fetchFollowStatus = async () => {
+      if (!userId || !currentUser) return;
+      
+      try {
+        const data = await userService.getFollowStatus(userId, accessToken || undefined);
+        setFollowStatus(data.relationType);
+      } catch (error) {
+        console.error('获取关注状态错误:', error);
+      }
+    };
+
+    fetchFollowStatus();
+  }, [userId, currentUser, accessToken]);
+
+  // 处理关注/取消关注
+  const handleFollowAction = async () => {
+    if (!currentUser || !userId || isProcessingFollow) {
+      return;
+    }
+
+    setIsProcessingFollow(true);
+    try {
+      // 判断当前状态
+      if (followStatus === 0 || followStatus === 2) {
+        // 未关注或被关注状态，执行关注操作
+        await userService.followUser(userId, accessToken || '');
+        // 更新状态
+        setFollowStatus(followStatus === 0 ? 1 : 3);
+        // 增加粉丝数
+        setFollowStats(prev => ({
+          ...prev,
+          followers: prev.followers + 1
+        }));
+      } else {
+        // 已关注或互相关注状态，执行取消关注操作
+        await userService.unfollowUser(userId, accessToken || '');
+        // 更新状态
+        setFollowStatus(followStatus === 1 ? 0 : 2);
+        // 减少粉丝数
+        setFollowStats(prev => ({
+          ...prev,
+          followers: prev.followers - 1
+        }));
+      }
+    } catch (error) {
+      console.error('关注操作失败:', error);
+      Alert.alert('错误', '关注操作失败，请稍后再试');
+    } finally {
+      setIsProcessingFollow(false);
+    }
+  };
+
+  // 获取关注按钮文本
+  const getFollowButtonText = () => {
+    if (followStatus === 0 || followStatus === 2) {
+      return '关注';
+    } else {
+      return '取消关注';
+    }
+  };
 
   // 初始加载
   useEffect(() => {
     if (user && activeTab === 'posts') {
       setIsLoading(true);
-      fetchMyArticles(1, true).finally(() => setIsLoading(false));
+      fetchUserArticles(1, true).finally(() => setIsLoading(false));
     }
-  }, [user, activeTab, fetchMyArticles]);
+  }, [user, activeTab, fetchUserArticles]);
 
   const handleRefresh = useCallback(async () => {
     if (activeTab !== 'posts') return;
     
     setIsRefreshing(true);
     setPage(1);
-    await fetchMyArticles(1, true);
+    await fetchUserArticles(1, true);
     setIsRefreshing(false);
-  }, [activeTab, fetchMyArticles]);
+  }, [activeTab, fetchUserArticles]);
 
   const handleLoadMore = useCallback(async () => {
     if (isLoadingMore || !hasMoreData || activeTab !== 'posts') return;
@@ -70,21 +203,17 @@ export default function ProfileScreen() {
     setIsLoadingMore(true);
     const nextPage = page + 1;
     setPage(nextPage);
-    await fetchMyArticles(nextPage);
+    await fetchUserArticles(nextPage);
     setIsLoadingMore(false);
-  }, [isLoadingMore, hasMoreData, page, activeTab, fetchMyArticles]);
+  }, [isLoadingMore, hasMoreData, page, activeTab, fetchUserArticles]);
 
   const handleTabPress = (tab: TabType) => {
     setActiveTab(tab);
     if (tab === 'posts') {
       setIsLoading(true);
       setPage(1);
-      fetchMyArticles(1, true).finally(() => setIsLoading(false));
+      fetchUserArticles(1, true).finally(() => setIsLoading(false));
     }
-  };
-
-  const navigateToSettings = () => {
-    router.push('/(modals)/settings');
   };
 
   const formatDate = (dateString: string) => {
@@ -96,31 +225,10 @@ export default function ProfileScreen() {
     });
   };
 
-  // 获取关注和粉丝数据
-  useEffect(() => {
-    const fetchFollowStats = async () => {
-      if (!user) return;
-      
-      setIsLoadingFollowStats(true);
-      try {
-        console.log('userService:', userService);
-        console.log('userService.getFollowCount:', userService?.getFollowCount);
-        const data = await userService.getFollowCount(user.id, accessToken || undefined);
-        setFollowStats({
-          following: data.following,
-          followers: data.followers
-        });
-      } catch (error) {
-        console.error('获取关注数据错误:', error);
-      } finally {
-        setIsLoadingFollowStats(false);
-      }
-    };
+  // 检查是否为当前登录用户
+  const isCurrentUser = currentUser && user && currentUser.id === user.id;
 
-    fetchFollowStats();
-  }, [user, accessToken]);
-
-  if (authLoading) {
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <ThemedView style={styles.loadingContainer}>
@@ -132,16 +240,15 @@ export default function ProfileScreen() {
   }
 
   if (!user) {
-    // 如果用户未登录，导航到登录页面
     return (
       <SafeAreaView style={styles.container}>
-        <ThemedView style={styles.notLoggedInContainer}>
-          <ThemedText style={styles.notLoggedInText}>请先登录</ThemedText>
+        <ThemedView style={styles.notFoundContainer}>
+          <ThemedText style={styles.notFoundText}>用户不存在或已被删除</ThemedText>
           <TouchableOpacity 
-            style={styles.loginButton} 
-            onPress={() => router.push('/(modals)/login')}
+            style={styles.backButton} 
+            onPress={() => router.back()}
           >
-            <Text style={styles.buttonText}>去登录</Text>
+            <Text style={styles.buttonText}>返回</Text>
           </TouchableOpacity>
         </ThemedView>
       </SafeAreaView>
@@ -196,9 +303,9 @@ export default function ProfileScreen() {
       <View style={styles.emptyContainer}>
         <IconSymbol name="doc.text" size={64} color={Colors[colorScheme].tabIconDefault} />
         <ThemedText style={styles.emptyText}>
-          {activeTab === 'posts' ? '您还没有发布任何文章' : 
-           activeTab === 'collects' ? '您还没有收藏任何内容' : 
-           '您还没有点赞任何内容'}
+          {activeTab === 'posts' ? '该用户还没有发布任何文章' : 
+           activeTab === 'collects' ? '该用户还没有收藏任何内容' : 
+           '该用户还没有点赞任何内容'}
         </ThemedText>
       </View>
     );
@@ -212,9 +319,6 @@ export default function ProfileScreen() {
           <View style={styles.avatar}>
             <ThemedText style={styles.avatarText}>{user.username.charAt(0).toUpperCase()}</ThemedText>
           </View>
-          <TouchableOpacity style={styles.avatarEditButton}>
-            <IconSymbol name="plus" size={20} color="#ffffff" />
-          </TouchableOpacity>
         </View>
         
         <View style={styles.profileInfo}>
@@ -229,11 +333,11 @@ export default function ProfileScreen() {
 
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <ThemedText style={styles.statNumber}>{isLoadingFollowStats ? '...' : followStats.following}</ThemedText>
+            <ThemedText style={styles.statNumber}>{followStats.following}</ThemedText>
             <ThemedText style={styles.statLabel}>关注</ThemedText>
           </View>
           <View style={styles.statItem}>
-            <ThemedText style={styles.statNumber}>{isLoadingFollowStats ? '...' : followStats.followers}</ThemedText>
+            <ThemedText style={styles.statNumber}>{followStats.followers}</ThemedText>
             <ThemedText style={styles.statLabel}>粉丝</ThemedText>
           </View>
           <View style={styles.statItem}>
@@ -243,19 +347,32 @@ export default function ProfileScreen() {
         </View>
         
         <View style={styles.actionButtons}>
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.primaryButton]}
-            onPress={() => router.push('/(modals)/create-article')}
-          >
-            <ThemedText style={styles.actionButtonText}>发布文章</ThemedText>
-          </TouchableOpacity>
+          {/* 如果不是当前登录用户，显示关注按钮 */}
+          {!isCurrentUser && currentUser && (
+            <TouchableOpacity 
+              style={[
+                styles.actionButton, 
+                styles.primaryButton,
+                isProcessingFollow && styles.disabledButton
+              ]}
+              onPress={handleFollowAction}
+              disabled={isProcessingFollow}
+            >
+              <ThemedText style={styles.actionButtonText}>
+                {isProcessingFollow ? '处理中...' : getFollowButtonText()}
+              </ThemedText>
+            </TouchableOpacity>
+          )}
           
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.secondaryButton]}
-            onPress={navigateToSettings}
-          >
-            <IconSymbol name="gearshape" size={18} color={Colors[colorScheme].text} />
-          </TouchableOpacity>
+          {/* 如果是当前登录用户，显示跳转到个人中心的按钮 */}
+          {isCurrentUser && (
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.primaryButton]}
+              onPress={() => router.push('/(tabs)/profile')}
+            >
+              <ThemedText style={styles.actionButtonText}>前往个人中心</ThemedText>
+            </TouchableOpacity>
+          )}
         </View>
       </ThemedView>
       
@@ -349,17 +466,17 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
   },
-  notLoggedInContainer: {
+  notFoundContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
-  notLoggedInText: {
+  notFoundText: {
     fontSize: 18,
     marginBottom: 20,
   },
-  loginButton: {
+  backButton: {
     backgroundColor: Colors.light.tint,
     paddingVertical: 12,
     paddingHorizontal: 24,
@@ -391,19 +508,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 36,
     fontWeight: 'bold',
-  },
-  avatarEditButton: {
-    position: 'absolute',
-    bottom: 5,
-    right: 0,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#F9A826',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
   },
   profileInfo: {
     marginBottom: 15,
@@ -445,20 +549,17 @@ const styles = StyleSheet.create({
   actionButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-    borderRadius: 8,
-    marginRight: 10,
+    borderRadius: 20,
+    marginRight: 12,
   },
   primaryButton: {
     backgroundColor: Colors.light.tint,
   },
   secondaryButton: {
     backgroundColor: 'rgba(0,0,0,0.05)',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
   },
   actionButtonText: {
     color: '#fff',
-    fontSize: 14,
     fontWeight: 'bold',
   },
   tabContainer: {
@@ -468,40 +569,34 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    paddingVertical: 12,
     alignItems: 'center',
+    paddingVertical: 12,
+  },
+  tabText: {
+    fontSize: 16,
   },
   activeTab: {
     borderBottomWidth: 2,
     borderBottomColor: Colors.light.tint,
   },
-  tabText: {
-    fontSize: 16,
-  },
   activeTabText: {
-    fontWeight: 'bold',
     color: Colors.light.tint,
+    fontWeight: 'bold',
   },
   listContent: {
     padding: 16,
-    paddingBottom: 32,
+    paddingTop: 8,
   },
   articleItem: {
-    marginBottom: 16,
-    borderRadius: 8,
-    backgroundColor: '#fff', // 使用固定颜色以确保黑暗模式下也能看清
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
     flexDirection: 'row',
-    overflow: 'hidden',
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+    paddingBottom: 16,
   },
   articleContent: {
     flex: 1,
-    padding:
-    16,
+    marginRight: 12,
   },
   articleTitle: {
     fontSize: 16,
@@ -510,31 +605,33 @@ const styles = StyleSheet.create({
   },
   articleExcerpt: {
     fontSize: 14,
+    opacity: 0.8,
+    marginBottom: 8,
     lineHeight: 20,
-    opacity: 0.7,
-    marginBottom: 12,
   },
   articleMeta: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
+    alignItems: 'center',
   },
   articleDate: {
     fontSize: 12,
-    opacity: 0.5,
+    opacity: 0.6,
   },
   articleImageContainer: {
     width: 80,
-    backgroundColor: '#f0f0f0',
+    height: 80,
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   articleImage: {
     width: '100%',
     height: '100%',
   },
   footer: {
-    padding: 16,
-    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
   },
   footerText: {
     marginLeft: 8,
@@ -542,14 +639,17 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   emptyContainer: {
-    padding: 32,
-    alignItems: 'center',
+    padding: 40,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   emptyText: {
     marginTop: 16,
     fontSize: 16,
     textAlign: 'center',
+    opacity: 0.7,
+  },
+  disabledButton: {
     opacity: 0.7,
   },
 }); 

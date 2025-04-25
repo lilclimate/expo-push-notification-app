@@ -27,12 +27,19 @@ const API_ENDPOINTS = {
     CREATE: `${getApiBaseUrl()}/api/articles`,
     UPDATE: (id: string) => `${getApiBaseUrl()}/api/articles/${id}`,
     DELETE: (id: string) => `${getApiBaseUrl()}/api/articles/${id}`,
-    MY_ARTICLES: `${getApiBaseUrl()}/api/articles/my`
+    MY_ARTICLES: `${getApiBaseUrl()}/api/articles/my`,
+    USER_ARTICLES: (userId: string) => `${getApiBaseUrl()}/api/articles/user/${userId}`
   },
   // 用户相关
   USERS: {
     PROFILE: `${getApiBaseUrl()}/api/users/profile`,
     UPDATE_PROFILE: `${getApiBaseUrl()}/api/users/profile`
+  },
+  // 用户关注相关
+  FOLLOW: {
+    COUNT: (userId: string) => `${getApiBaseUrl()}/api/users/${userId}/follow/count`,
+    STATUS: (userId: string) => `${getApiBaseUrl()}/api/users/${userId}/follow/status`,
+    FOLLOW: (userId: string) => `${getApiBaseUrl()}/api/users/${userId}/follow`
   }
 };
 

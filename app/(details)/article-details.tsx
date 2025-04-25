@@ -4,9 +4,10 @@ import {
   ScrollView, 
   ActivityIndicator, 
   Alert,
-  View
+  View,
+  TouchableOpacity
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
@@ -19,8 +20,9 @@ export default function ArticleDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [article, setArticle] = useState<Article | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { accessToken } = useAuth();
+  const { user, accessToken } = useAuth();
   const colorScheme = useColorScheme() ?? 'light';
+  const router = useRouter();
 
   useEffect(() => {
     const fetchArticleDetails = async () => {
@@ -56,6 +58,23 @@ export default function ArticleDetailsScreen() {
     });
   };
 
+  // 处理作者点击事件
+  const handleAuthorPress = () => {
+    if (!article) return;
+    
+    // 检查作者是否是当前登录用户
+    if (user && user.id === article.userId._id) {
+      // 如果是当前用户，跳转到个人中心
+      router.push('/(tabs)/profile');
+    } else {
+      // 否则跳转到作者主页
+      router.push({
+        pathname: '/(details)/user-profile',
+        params: { userId: article.userId._id }
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -84,9 +103,11 @@ export default function ArticleDetailsScreen() {
           <ThemedText style={styles.title}>{article.title}</ThemedText>
           
           <View style={styles.metaContainer}>
-            <ThemedText style={styles.author}>
-              作者: {article.userId.username}
-            </ThemedText>
+            <TouchableOpacity onPress={handleAuthorPress}>
+              <ThemedText style={[styles.author, styles.authorLink]}>
+                作者: {article.userId.username}
+              </ThemedText>
+            </TouchableOpacity>
             <ThemedText style={styles.date}>
               {formatDate(article.createdAt)}
             </ThemedText>
@@ -146,6 +167,9 @@ const styles = StyleSheet.create({
   author: {
     fontSize: 14,
     opacity: 0.7,
+  },
+  authorLink: {
+    color: Colors.light.tint,
   },
   date: {
     fontSize: 14,

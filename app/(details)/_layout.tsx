@@ -32,6 +32,13 @@ export default function DetailsLayout() {
           headerTitleAlign: 'center'
         }} 
       />
+      <Stack.Screen 
+        name="user-profile" 
+        options={{ 
+          title: '用户主页',
+          headerTitleAlign: 'center'
+        }} 
+      />
     </Stack>
   );
 } 

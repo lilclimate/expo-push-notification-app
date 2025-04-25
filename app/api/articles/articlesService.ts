@@ -74,6 +74,20 @@ const articlesService = {
   },
 
   /**
+   * 获取指定用户的文章列表
+   * @param userId 用户ID
+   * @param page 页码
+   * @param limit 每页数量
+   * @param token 访问令牌（可选）
+   * @returns 用户文章列表数据
+   */
+  getUserArticles: async (userId: string, page: number = 1, limit: number = 10, token?: string): Promise<ArticlesListResponse> => {
+    const url = `${API_ENDPOINTS.ARTICLES.USER_ARTICLES(userId)}?page=${page}&limit=${limit}`;
+    const response = await apiService.get<ArticlesListResponse>(url, { token });
+    return response.data;
+  },
+
+  /**
    * 创建文章
    * @param data 文章数据
    * @param token 访问令牌

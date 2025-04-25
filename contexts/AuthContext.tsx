@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authService } from '@/app/api/auth';
+import { authService } from '@/app/api';
 import { API_ENDPOINTS } from '@/app/api';
 
 interface User {
@@ -220,7 +220,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.log('调用登录API');
       
       const data = await authService.login(email, password);
-      console.log(data, 'loginData------------')
       
       const { user, accessToken, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt } = data;
       
